@@ -12,18 +12,23 @@ The backend scaffold and the agreed contracts are in [`backend/`](backend/) and 
 - `docs/database-schema.md` - ERD, table definitions, indexes, and forecasting semantics.
 - `docs/api-contracts.md` - initial frontend and ML integration contracts.
 
-## Backend quick start
+## Backend and database quick start
 
 ```bash
+docker compose up -d db
+
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
 Then open `http://127.0.0.1:8000/docs` or call `GET /api/v1/health`.
+
+Use `docker compose down` to stop PostgreSQL while preserving its data, or `docker compose down -v` only when intentionally removing local database data.
 
 ## Team decisions to confirm
 

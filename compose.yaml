@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: what-the-hack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: what_the_hack
+      POSTGRES_USER: what_the_hack
+      POSTGRES_PASSWORD: what_the_hack
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U what_the_hack -d what_the_hack"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
