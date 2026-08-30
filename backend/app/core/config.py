@@ -8,9 +8,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://what_the_hack:what_the_hack@localhost:5432/what_the_hack"
-    jwt_secret_key: str = "development-only-change-me"
+    jwt_secret_key: str = "development-only-change-me-use-env-secret"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
     frontend_origins: list[str] = ["http://localhost:5173"]
     max_upload_size_mb: int = 50
 
@@ -23,4 +24,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-

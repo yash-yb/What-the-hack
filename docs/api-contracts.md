@@ -2,6 +2,24 @@
 
 All public endpoints are under `/api/v1`. Responses use ISO-8601 UTC timestamps and UUID IDs. Protected routes will use `Authorization: Bearer <token>` from Day 3 onward.
 
+## Authentication (Day 3)
+
+`POST /api/v1/auth/login` accepts `{ "email": "analyst@what-the-hack.local", "password": "..." }` and returns:
+
+```json
+{
+  "access_token": "<JWT>",
+  "refresh_token": "<JWT>",
+  "token_type": "bearer",
+  "expires_at": "2026-08-30T12:30:00Z",
+  "user": {"id": "uuid", "email": "analyst@what-the-hack.local", "display_name": "Demo Analyst", "role": "analyst"}
+}
+```
+
+Send `Authorization: Bearer <access_token>` on protected calls. Access tokens last 30 minutes by default; refresh tokens last 7 days and are rotated by `POST /api/v1/auth/refresh` with `{ "refresh_token": "<JWT>" }`. `POST /api/v1/auth/logout` revokes the supplied access token. A missing/invalid token returns `401`; an authenticated role without permission returns `403`.
+
+For the local demo, run `cd backend && PYTHONPATH=. python scripts/seed_demo_users.py` after `alembic upgrade head`. This creates the three role accounts shown above; change those passwords before any deployment.
+
 ## Roles
 
 | Role | Allowed MVP actions |
@@ -98,4 +116,3 @@ The eventual internal inference call accepts a versioned feature vector and retu
 ```
 
 If the model is unavailable, the backend returns a validated rule-based result with `is_fallback: true`. If the feature schema version does not match, it fails closed and records an audit event; it must not silently guess column meanings.
-

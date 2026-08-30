@@ -1,6 +1,7 @@
 .DS_Store
 .env
 .venv/
+backend/.venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -9,4 +10,3 @@ __pycache__/
 htmlcov/
 uploads/
 *.sqlite3
-

@@ -9,6 +9,7 @@ from app.models.network import (
     ModelVersion,
     Prediction,
     RawFlow,
+    RevokedToken,
     Role,
     TrafficSource,
     TrafficWindow,
@@ -18,5 +19,5 @@ from app.models.network import (
 
 __all__ = [
     "Alert", "AlertEvent", "AuditLog", "HostEntity", "IngestionJob", "ModelVersion",
-    "Prediction", "RawFlow", "Role", "TrafficSource", "TrafficWindow", "User", "WindowFeature",
+    "Prediction", "RawFlow", "RevokedToken", "Role", "TrafficSource", "TrafficWindow", "User", "WindowFeature",
 ]

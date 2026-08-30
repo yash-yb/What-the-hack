@@ -80,6 +80,15 @@ class User(Base, TimestampMixin):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class RevokedToken(Base):
+    __tablename__ = "revoked_tokens"
+    __table_args__ = (Index("ix_revoked_tokens_expires_at", "expires_at"),)
+
+    token_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class TrafficSource(Base, TimestampMixin):
     __tablename__ = "traffic_sources"
 
