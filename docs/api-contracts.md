@@ -20,6 +20,12 @@ Send `Authorization: Bearer <access_token>` on protected calls. Access tokens la
 
 For the local demo, run `cd backend && PYTHONPATH=. python scripts/seed_demo_users.py` after `alembic upgrade head`. This creates the three role accounts shown above; change those passwords before any deployment.
 
+## CSV ingestion (Day 4)
+
+`POST /api/v1/ingestion/upload` accepts an admin-authenticated multipart request with `file` (a UTF-8 `.csv`) and optional `source_name`. The maximum size is 50 MB by default. Required CSV headers are `timestamp`, `src_ip`, `dst_ip`, `protocol`, `packets`, and `bytes`; invalid rows are skipped and counted. Missing required headers, empty files, invalid encoding, unsupported file types, and oversized files receive clear 4xx responses.
+
+The `201` response and `GET /api/v1/ingestion/{job_id}/status` return the persisted job with status and accepted/skipped row counts. Uploading is admin-only; all authenticated roles can read a job's status.
+
 ## Roles
 
 | Role | Allowed MVP actions |
