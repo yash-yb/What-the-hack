@@ -147,6 +147,7 @@ class TrafficWindow(Base, TimestampMixin):
     __table_args__ = (
         CheckConstraint("window_end > window_start", name="ck_traffic_windows_valid_range"),
         Index("ix_traffic_windows_source_range", "traffic_source_id", "window_start", "window_end"),
+        UniqueConstraint("traffic_source_id", "scope_type", "scope_key", "window_start", "window_end", name="uq_traffic_windows_source_scope_range"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

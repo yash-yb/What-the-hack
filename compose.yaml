@@ -17,5 +17,24 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://what_the_hack:what_the_hack@db:5432/what_the_hack
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-development-only-change-me-use-env-secret}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-["http://localhost:5173"]}
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:

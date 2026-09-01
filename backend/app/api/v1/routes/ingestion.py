@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models.network import AuditLog, IngestionJob, IngestionStatus, RawFlow, SourceType, TrafficSource, User
 from app.schemas.ingestion import IngestionJobResponse
 from app.services.ingestion import CsvValidationError, parse_csv_flows
+from app.services.windows import build_traffic_windows_in_background
 
 router = APIRouter(prefix="/ingestion")
 ALLOWED_CONTENT_TYPES = {"text/csv", "application/csv", "application/vnd.ms-excel", "application/octet-stream"}
@@ -20,6 +21,7 @@ ALLOWED_CONTENT_TYPES = {"text/csv", "application/csv", "application/vnd.ms-exce
 
 @router.post("/upload", response_model=IngestionJobResponse, status_code=status.HTTP_201_CREATED)
 async def upload_csv(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     source_name: str | None = Form(default=None, max_length=160),
     user: User = Depends(require_admin),
@@ -63,6 +65,7 @@ async def upload_csv(
     db.add(AuditLog(actor_user_id=user.id, action="ingestion.upload", resource_type="ingestion_job", resource_id=job.id, metadata_json={"accepted_rows": job.accepted_rows, "skipped_rows": job.skipped_rows}))
     db.commit()
     db.refresh(job)
+    background_tasks.add_task(build_traffic_windows_in_background, source.id)
     return job
 
 

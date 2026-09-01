@@ -26,6 +26,12 @@ For the local demo, run `cd backend && PYTHONPATH=. python scripts/seed_demo_use
 
 The `201` response and `GET /api/v1/ingestion/{job_id}/status` return the persisted job with status and accepted/skipped row counts. Uploading is admin-only; all authenticated roles can read a job's status.
 
+## Traffic windows (Day 5)
+
+After each successful CSV upload, a lightweight FastAPI background task builds that source's fixed 60-second windows. `POST /api/v1/windows/build` is the admin-only manual/backfill endpoint and accepts exactly one of `traffic_source_id` or `ingestion_job_id`. Each stored window reports the count of distinct network five-tuples (`flow_count`), packets, and bytes. Repeating the request refreshes the same windows instead of duplicating them.
+
+`GET /api/v1/windows?traffic_source_id=<uuid>` lets any authenticated role inspect the resulting windows in chronological order.
+
 ## Roles
 
 | Role | Allowed MVP actions |
