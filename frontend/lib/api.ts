@@ -44,6 +44,15 @@ export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>("/health");
 }
 
+export async function getAlerts() {
+  return [
+    { id: 1, host: "10.0.0.5", severity: "high", score: 82, time: "2 min ago" },
+    { id: 2, host: "10.0.0.9", severity: "medium", score: 45, time: "10 min ago" },
+    { id: 3, host: "10.0.0.14", severity: "critical", score: 96, time: "1 min ago" },
+    { id: 4, host: "10.0.0.22", severity: "low", score: 12, time: "30 min ago" },
+  ];
+}
+
 export interface AuthUser {
   id: string;
   email: string;
