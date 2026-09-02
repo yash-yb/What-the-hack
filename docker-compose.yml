@@ -19,7 +19,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: what-the-hack-backend
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://what_the_hack:what_the_hack@db:5432/what_the_hack}

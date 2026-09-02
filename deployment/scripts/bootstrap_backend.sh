@@ -10,4 +10,4 @@ cd "$ROOT/backend"
 [ -f .env ] || cp .env.example .env
 .venv/bin/alembic upgrade head
 PYTHONPATH=. .venv/bin/python scripts/seed_demo_users.py
-echo "Backend ready. Start it with: cd backend && PYTHONPATH=. .venv/bin/uvicorn app.main:app --reload"
+echo "Backend ready. Start it with: cd backend && PYTHONPATH=..:. .venv/bin/uvicorn app.main:app --reload"

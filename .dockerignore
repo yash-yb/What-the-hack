@@ -1,0 +1,21 @@
+# Root build context is used by backend/Dockerfile; keep it small.
+.git
+.github
+node_modules
+frontend
+.next
+**/.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.env
+.env.*
+!.env.example
+ai/datasets/data
+ai/datasets/raw
+ai/notebooks
+docs
+sample_data
+tests
+*.zip
+*.pcap

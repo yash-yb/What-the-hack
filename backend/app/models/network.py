@@ -37,6 +37,7 @@ class RiskLevel(str, enum.Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+    CRITICAL = "critical"
 
 
 class AlertSeverity(str, enum.Enum):

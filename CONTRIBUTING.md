@@ -66,14 +66,14 @@ explanation formatting, and every new API route.
 
 ## Ownership
 
-| Area | Owner | Backup |
-| --- | --- | --- |
-| Product, architecture, integration | Team lead | DevOps |
-| Frontend | Frontend engineer | UI/UX + QA |
-| Backend and database | Backend engineer (Shreya) | ML engineer |
-| AI/ML and data | ML engineer (Yash) | Backend engineer |
-| UI/UX, QA, documentation | UI/UX + QA | Frontend engineer |
-| DevOps, deployment, demo environment | DevOps (Arnav) | Team lead |
+| Member | Area | Owner | Backup |
+| --- | --- | --- | --- |
+| 1 | Team lead, product, architecture, integration decisions | Durgesh | Arnav |
+| 2 | Frontend (dashboard, alert pages, admin pages) | Adarsh | Kshitij |
+| 3 | Backend and database (APIs, auth, ingestion, alerts, migrations) | Shreya | Yash |
+| 4 | AI/ML and data (datasets, features, labels, model, evaluation) | Yash Bhanushali | Shreya |
+| 5 | UI/UX, QA, documentation (wireframes, test cases, user guide) | Kshitij | Adarsh |
+| 6 | DevOps, integration, research, presentation (Docker, deployment, demo build, PPT) | Arnav | Durgesh |
 
 Rule: no critical knowledge lives with one person. Members 1 and 6 can both run the full
 stack; members 3 and 4 both understand the inference contract; members 2 and 5 both know

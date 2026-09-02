@@ -93,38 +93,22 @@ After each successful CSV upload, a lightweight FastAPI background task builds t
 
 ## ML inference adapter contract
 
-The eventual internal inference call accepts a versioned feature vector and returns a forecast. The backend owns validation and persistence; the ML component must not write directly to application tables.
+Frozen in `docs/api/ml-inference-contract.md` and `docs/api/feature_schema_contract.json`
+(feature schema `v1`). Summary:
 
-```json
-{
-  "observation_window": {
-    "id": "uuid",
-    "start": "2026-08-28T10:00:00Z",
-    "end": "2026-08-28T10:01:00Z"
-  },
-  "forecast_horizon_seconds": 300,
-  "feature_schema_version": "v1",
-  "features": {
-    "flow_count": 142,
-    "failed_connection_ratio": 0.38
-  }
-}
-```
+- The backend builds the 37-feature `WindowFeatures` vector per window, validates it with
+  `app.schemas.inference.InferenceRequest`, and calls `ai.inference.forecast(request)` in
+  process with a 2-second deadline.
+- The response carries `risk_score` (0 to 100), `risk_level` (`low`, `medium`, `high`,
+  `critical`), `predicted_attack_type`, `forecast_horizon_sec` (default 300), `confidence_score`,
+  `explanation_json` (summary plus ranked `top_features`), `is_fallback`, `is_uncertain`, `is_ood`.
+- The backend owns persistence: `predictions` gets one row per response with explicit
+  `forecast_window_start` and `forecast_window_end`; the ML component never writes to
+  application tables.
+- Schema mismatch and invalid features fail closed (422 plus an audit event). Model
+  unavailable, timeout, or a model exception fall back to `ai.inference.rule_based_forecast`
+  with `is_fallback: true`.
 
-```json
-{
-  "model_name": "baseline-forecast",
-  "model_version": "v1",
-  "risk_score": 86.4,
-  "risk_level": "high",
-  "predicted_attack_type": "brute_force",
-  "confidence_score": 0.82,
-  "is_uncertain": false,
-  "is_ood": false,
-  "explanations": [
-    {"feature": "failed_connection_ratio", "importance": 0.71, "message": "Failed connections increased 4.2x."}
-  ]
-}
-```
-
-If the model is unavailable, the backend returns a validated rule-based result with `is_fallback: true`. If the feature schema version does not match, it fails closed and records an audit event; it must not silently guess column meanings.
+The public alert responses above expose `explanations` as the `top_features` list and
+`recommended_actions` from `explanation_json.mitigation_recommendation` plus the
+attack-type rule table.
