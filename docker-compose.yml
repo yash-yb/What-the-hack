@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: what-the-hack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-what_the_hack}
+      POSTGRES_USER: ${POSTGRES_USER:-what_the_hack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-what_the_hack}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-what_the_hack} -d ${POSTGRES_DB:-what_the_hack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: what-the-hack-backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://what_the_hack:what_the_hack@db:5432/what_the_hack}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-development-only-change-me-use-env-secret}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-["http://localhost:3000","http://localhost:5173"]}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
+      TRAFFIC_WINDOW_SECONDS: ${TRAFFIC_WINDOW_SECONDS:-60}
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: what-the-hack-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

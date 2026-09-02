@@ -1,12 +1,49 @@
+# OS / editors
 .DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Secrets and local config
 .env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
 .venv/
-backend/.venv/
+venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# Data and model artifacts (keep the repo small; commit metadata JSON only)
 uploads/
 *.sqlite3
+ai/datasets/data/
+ai/datasets/raw/
+ai/models/*.pkl
+ai/models/*.joblib
+ai/models/*.bin
+ai/models/*.onnx
+ai/models/*.h5
+*.zip
+*.pcap
+*.pcapng
+
+# Logs
+*.log

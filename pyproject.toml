@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# Run `pytest` from the repository root. Both suites are collected:
+#   tests/          -> ML contracts, integration, API-level tests (imports `ai.*`)
+#   backend/tests/  -> backend unit tests (imports `app.*`)
+testpaths = ["tests", "backend/tests"]
+pythonpath = [".", "backend"]
+addopts = "--import-mode=importlib -ra"
