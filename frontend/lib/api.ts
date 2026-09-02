@@ -126,3 +126,31 @@ export async function getDashboardSummary() {
     ],
   };
 }
+
+export async function getAlertDetail(id: string) {
+  // Fake detail data — keyed by id for now
+  const details: Record<string, any> = {
+    "1": {
+      id: 1,
+      host: "10.0.0.5",
+      severity: "high",
+      score: 82,
+      predictedAttack: "Brute-force login",
+      forecastHorizon: "Next 10 minutes",
+      confidence: 0.87,
+      contributingFactors: [
+        "Failed login burst increased 4.2x",
+        "Unusual login time (03:00–04:00 local)",
+        "Requests from 3 new source IPs",
+      ],
+      recommendedActions: [
+        "Temporarily lock account after 5 failed attempts",
+        "Flag source IPs for review",
+      ],
+      trafficBefore: [10, 12, 11, 14, 40, 65],
+      trafficAfter: [65, 70, 68, 72, 75, 78],
+    },
+  };
+
+  return details[id] ?? details["1"]; // fallback so every id shows something for now
+}
