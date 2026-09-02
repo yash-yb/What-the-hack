@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, Enum, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -136,7 +136,7 @@ class RawFlow(Base, TimestampMixin):
     dst_port: Mapped[int | None] = mapped_column(Integer)
     protocol: Mapped[str] = mapped_column(String(16), nullable=False)
     packet_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    byte_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    byte_count: Mapped[int] = mapped_column(BigInteger, nullable=False)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     tcp_flags: Mapped[str | None] = mapped_column(String(32))
     failed_connection: Mapped[bool | None] = mapped_column(Boolean)
@@ -159,8 +159,8 @@ class TrafficWindow(Base, TimestampMixin):
     scope_type: Mapped[WindowScope] = mapped_column(Enum(WindowScope, name="window_scope", native_enum=False), nullable=False)
     scope_key: Mapped[str] = mapped_column(String(255), nullable=False)
     flow_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
-    packet_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
-    byte_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    packet_count: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
+    byte_count: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
 
 
 class WindowFeature(Base, TimestampMixin):

@@ -6,7 +6,15 @@ from io import StringIO
 from typing import Any
 
 REQUIRED_COLUMNS = {"timestamp", "src_ip", "dst_ip", "protocol", "packets", "bytes"}
-FAILED_CONNECTION_VALUES = {"syn_no_ack", "rst_abort", "failed", "true", "1", "yes"}
+
+# Values follow docs/api/feature_schema_contract.json (RawFlow). Legacy truthy/falsy spellings
+# are kept so older CSVs still load; anything else is an invalid row.
+PROTOCOLS = {"TCP", "UDP", "ICMP", "OTHER"}
+PROTOCOL_ALIASES = {"6": "TCP", "17": "UDP", "1": "ICMP"}
+TCP_FLAG_TOKENS = {"SYN", "ACK", "FIN", "RST", "PSH", "URG", "ECE", "CWE"}
+FAILED_CONNECTION_TRUE = {"syn_no_ack", "rst_abort", "zero_win", "failed", "true", "1", "yes"}
+FAILED_CONNECTION_FALSE = {"clean", "false", "0", "no"}
+FAILED_CONNECTION_UNKNOWN = {"na", "n/a", "none", "null"}
 
 
 @dataclass
@@ -59,10 +67,7 @@ def parse_row(row: dict[str, str | None]) -> ParsedFlow:
     observed_at = parse_timestamp(required_value(row, "timestamp"))
     src_ip = str(ipaddress.ip_address(required_value(row, "src_ip")))
     dst_ip = str(ipaddress.ip_address(required_value(row, "dst_ip")))
-    protocol = required_value(row, "protocol").upper()
-    if len(protocol) > 16:
-        raise ValueError("Protocol is too long")
-    failed_value = optional_value(row.get("failed_conn_info"))
+    protocol = parse_protocol(required_value(row, "protocol"))
     mapped_fields = {"timestamp", "src_ip", "dst_ip", "src_port", "dst_port", "protocol", "packets", "bytes", "duration_ms", "flags", "failed_conn_info"}
     return ParsedFlow(
         observed_at=observed_at,
@@ -74,8 +79,8 @@ def parse_row(row: dict[str, str | None]) -> ParsedFlow:
         packet_count=parse_nonnegative_int(required_value(row, "packets"), "packets"),
         byte_count=parse_nonnegative_int(required_value(row, "bytes"), "bytes"),
         duration_ms=parse_duration(row.get("duration_ms")),
-        tcp_flags=optional_value(row.get("flags")),
-        failed_connection=failed_value.lower() in FAILED_CONNECTION_VALUES if failed_value else None,
+        tcp_flags=parse_flags(row.get("flags")),
+        failed_connection=parse_failed_connection(row.get("failed_conn_info")),
         extra_json={key: value for key, value in row.items() if key not in mapped_fields and value not in (None, "")},
     )
 
@@ -89,6 +94,40 @@ def required_value(row: dict[str, str | None], name: str) -> str:
 
 def optional_value(value: str | None) -> str | None:
     return value.strip() or None if value is not None else None
+
+
+def parse_protocol(value: str) -> str:
+    """Normalise to the contract enum: TCP, UDP, ICMP, or OTHER (IANA numbers accepted)."""
+    normalized = value.strip().upper()
+    normalized = PROTOCOL_ALIASES.get(normalized, normalized)
+    return normalized if normalized in PROTOCOLS else "OTHER"
+
+
+def parse_flags(value: str | None) -> str | None:
+    """Return a canonical comma-separated flag list, None for missing/NONE, ValueError for junk."""
+    normalized = optional_value(value)
+    if normalized is None or normalized.upper() == "NONE":
+        return None
+    tokens = [token.strip().upper() for token in normalized.split(",") if token.strip()]
+    unknown = [token for token in tokens if token not in TCP_FLAG_TOKENS]
+    if not tokens or unknown:
+        raise ValueError(f"Unknown TCP flags: {', '.join(unknown) or value}")
+    return ",".join(dict.fromkeys(tokens))
+
+
+def parse_failed_connection(value: str | None) -> bool | None:
+    """Map failed_conn_info to True (failed), False (clean), or None (not applicable)."""
+    normalized = optional_value(value)
+    if normalized is None:
+        return None
+    lowered = normalized.lower()
+    if lowered in FAILED_CONNECTION_TRUE:
+        return True
+    if lowered in FAILED_CONNECTION_FALSE:
+        return False
+    if lowered in FAILED_CONNECTION_UNKNOWN:
+        return None
+    raise ValueError(f"Unknown failed_conn_info value: {value}")
 
 
 def parse_timestamp(value: str) -> datetime:

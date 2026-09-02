@@ -46,14 +46,34 @@ async def upload_csv(
     normalized_source_name = (source_name or Path(filename).stem).strip()
     if not normalized_source_name:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="source_name must not be empty")
+    content_hash = hashlib.sha256(content).hexdigest()
     source = db.scalar(select(TrafficSource).where(TrafficSource.name == normalized_source_name))
     if source is None:
         source = TrafficSource(name=normalized_source_name, source_type=SourceType.CSV_REPLAY, description="CSV flow replay source", created_by_user_id=user.id)
         db.add(source)
         db.flush()
+    else:
+        # Windows aggregate every raw flow of a source, so the same file loaded twice would
+        # double every count. Refuse the duplicate and point at the job that already holds it.
+        duplicate = db.scalar(
+            select(IngestionJob).where(
+                IngestionJob.traffic_source_id == source.id,
+                IngestionJob.content_hash == content_hash,
+                IngestionJob.status == IngestionStatus.COMPLETED,
+            )
+        )
+        if duplicate is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": f"This file was already ingested into source '{normalized_source_name}'",
+                    "existing_job_id": str(duplicate.id),
+                    "traffic_source_id": str(source.id),
+                },
+            )
     job = IngestionJob(
         traffic_source_id=source.id, requested_by_user_id=user.id, original_filename=filename,
-        content_hash=hashlib.sha256(content).hexdigest(), status=IngestionStatus.RUNNING,
+        content_hash=content_hash, status=IngestionStatus.RUNNING,
         total_rows=parsed.total_rows, accepted_rows=0, skipped_rows=parsed.skipped_rows, started_at=datetime.now(timezone.utc),
     )
     db.add(job)

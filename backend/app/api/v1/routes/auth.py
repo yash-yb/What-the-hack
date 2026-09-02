@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials
@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import bearer_scheme, credentials_exception, get_current_user, get_user_role, require_admin, require_viewer
+from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password
 from app.db.session import get_db
 from app.models.network import AuditLog, RevokedToken, Role, User
@@ -20,8 +21,8 @@ def user_response(user: User, role: str) -> UserResponse:
 
 
 def issue_tokens(user: User, role: str) -> TokenResponse:
-    access_token, _, access_expires_at = create_access_token(subject=str(user.id), role=role)
-    refresh_token, _, _ = create_refresh_token(subject=str(user.id), role=role)
+    refresh_token, refresh_token_id, _ = create_refresh_token(subject=str(user.id), role=role)
+    access_token, _, access_expires_at = create_access_token(subject=str(user.id), role=role, refresh_token_id=refresh_token_id)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token, expires_at=access_expires_at, user=user_response(user, role))
 
 
@@ -73,9 +74,14 @@ def logout(
         claims = decode_token(credentials.credentials)
         token_id = uuid.UUID(claims["jti"])
         expires_at = datetime.fromtimestamp(claims["exp"], tz=timezone.utc)
+        refresh_token_id = uuid.UUID(claims["refresh_jti"]) if claims.get("refresh_jti") else None
     except (KeyError, ValueError, TypeError):
         raise credentials_exception() from None
     db.add(RevokedToken(token_id=token_id, expires_at=expires_at))
+    if refresh_token_id is not None and db.get(RevokedToken, refresh_token_id) is None:
+        # The paired refresh token must die with the session; its exp is bounded by the configured lifetime.
+        refresh_expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+        db.add(RevokedToken(token_id=refresh_token_id, expires_at=refresh_expires_at))
     db.add(AuditLog(actor_user_id=user.id, action="auth.logout", resource_type="user", resource_id=user.id))
     db.commit()
     return response
