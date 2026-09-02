@@ -9,7 +9,7 @@ Raw CSV rows are grouped into fixed 60-second windows after a successful upload.
 From the repository root:
 
 ```bash
-JWT_SECRET_KEY='replace-with-a-long-random-secret' docker-compose up --build
+JWT_SECRET_KEY='replace-with-a-long-random-secret' docker compose up --build
 ```
 
 Docker starts PostgreSQL as `db` and the backend as `backend`. The backend's database host is `db`, not `localhost`: `localhost` inside a container points back to that same container.
@@ -17,7 +17,7 @@ Docker starts PostgreSQL as `db` and the backend as `backend`. The backend's dat
 Check both services:
 
 ```bash
-docker-compose ps
+docker compose ps
 curl http://localhost:8000/api/v1/health
 ```
 

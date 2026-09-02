@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -9,7 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.models.network import RawFlow, TrafficWindow, WindowScope
+from app.models.network import AuditLog, IngestionJob, RawFlow, TrafficWindow, WindowScope
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -49,10 +52,15 @@ def aggregate_raw_flows(raw_flows: Iterable[RawFlow], window_seconds: int) -> li
     ]
 
 
+def as_utc(value: datetime) -> datetime:
+    """Treat naive datetimes as UTC (SQLite drops the offset); normalise aware ones to UTC."""
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
 def floor_to_window(observed_at: datetime, window_seconds: int) -> datetime:
     if window_seconds <= 0:
         raise ValueError("window_seconds must be positive")
-    timestamp = observed_at.astimezone(timezone.utc).timestamp()
+    timestamp = as_utc(observed_at).timestamp()
     return datetime.fromtimestamp(int(timestamp // window_seconds) * window_seconds, tz=timezone.utc)
 
 
@@ -61,7 +69,7 @@ def build_traffic_windows(db: Session, traffic_source_id: UUID) -> WindowBuildRe
     aggregates = aggregate_raw_flows(raw_flows, settings.traffic_window_seconds)
     scope_key = str(traffic_source_id)
     existing_windows = {
-        window.window_start: window
+        as_utc(window.window_start): window
         for window in db.scalars(
             select(TrafficWindow).where(
                 TrafficWindow.traffic_source_id == traffic_source_id,
@@ -94,8 +102,36 @@ def build_traffic_windows(db: Session, traffic_source_id: UUID) -> WindowBuildRe
     )
 
 
-def build_traffic_windows_in_background(traffic_source_id: UUID) -> None:
-    """Run after a successful upload without keeping the upload request open."""
+def build_traffic_windows_in_background(traffic_source_id: UUID, ingestion_job_id: UUID | None = None) -> None:
+    """
+    Run after a successful upload without keeping the upload request open.
+
+    The outcome is recorded so a failed build is never silent: success writes an audit
+    row, failure writes an audit row and stores the reason on the ingestion job.
+    """
     with SessionLocal() as db:
-        build_traffic_windows(db, traffic_source_id)
-        db.commit()
+        try:
+            result = build_traffic_windows(db, traffic_source_id)
+            db.add(AuditLog(
+                actor_user_id=None,
+                action="windows.build.auto",
+                resource_type="ingestion_job" if ingestion_job_id else "traffic_source",
+                resource_id=ingestion_job_id or traffic_source_id,
+                metadata_json={"raw_flows_processed": result.raw_flows_processed, "windows_written": result.windows_written},
+            ))
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 - background task: record, never raise into the server loop
+            db.rollback()
+            logger.exception("Background window build failed for source %s", traffic_source_id)
+            if ingestion_job_id is not None:
+                job = db.get(IngestionJob, ingestion_job_id)
+                if job is not None:
+                    job.error_message = f"Window build failed: {exc}"[:2000]
+            db.add(AuditLog(
+                actor_user_id=None,
+                action="windows.build.failed",
+                resource_type="traffic_source",
+                resource_id=traffic_source_id,
+                metadata_json={"error": str(exc)[:500]},
+            ))
+            db.commit()

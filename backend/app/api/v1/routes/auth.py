@@ -1,19 +1,21 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import bearer_scheme, credentials_exception, get_current_user, get_user_role, require_admin, require_viewer
 from app.core.config import settings
+from app.core.ratelimit import RateLimiter, client_ip, enforce
 from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password
 from app.db.session import get_db
 from app.models.network import AuditLog, RevokedToken, Role, User
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserResponse
 
 router = APIRouter(prefix="/auth")
+login_limiter = RateLimiter(limit=settings.login_rate_limit_per_minute, window_seconds=60.0)
 
 
 def user_response(user: User, role: str) -> UserResponse:
@@ -27,7 +29,9 @@ def issue_tokens(user: User, role: str) -> TokenResponse:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+    enforce(login_limiter, f"ip:{client_ip(request)}", "login", settings.rate_limit_enabled)
+    enforce(login_limiter, f"email:{payload.email.lower()}", "login", settings.rate_limit_enabled)
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
@@ -63,7 +67,6 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenResp
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
-    response: Response,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -84,7 +87,7 @@ def logout(
         db.add(RevokedToken(token_id=refresh_token_id, expires_at=refresh_expires_at))
     db.add(AuditLog(actor_user_id=user.id, action="auth.logout", resource_type="user", resource_id=user.id))
     db.commit()
-    return response
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/me", response_model=UserResponse)

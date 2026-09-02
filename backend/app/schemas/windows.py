@@ -41,3 +41,4 @@ class TrafficWindowResponse(BaseModel):
 
 class TrafficWindowListResponse(BaseModel):
     items: list[TrafficWindowResponse]
+    next_cursor: str | None = None

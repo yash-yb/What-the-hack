@@ -5,7 +5,7 @@
 From the repository root, make sure PostgreSQL is running, then prepare the backend:
 
 ```bash
-docker-compose up -d db
+docker compose up -d db
 cd backend
 cp .env.example .env
 .venv/bin/alembic upgrade head
