@@ -70,3 +70,22 @@ export function listWindows(token: string, trafficSourceId: string, after?: stri
   if (after) params.set("after", after);
   return request<TrafficWindowListResponse>(`/windows?${params.toString()}`, {}, token);
 }
+
+export async function getDashboardSummary() {
+  return {
+    riskCounts: { low: 12, medium: 7, high: 3, critical: 1 },
+    trafficTrend: [
+      { time: "10:00", value: 20 },
+      { time: "10:05", value: 25 },
+      { time: "10:10", value: 22 },
+      { time: "10:15", value: 40 },
+      { time: "10:20", value: 65 },
+      { time: "10:25", value: 90 },
+    ],
+    topHosts: [
+      { host: "10.0.0.14", score: 96 },
+      { host: "10.0.0.5", score: 82 },
+      { host: "10.0.0.9", score: 45 },
+    ],
+  };
+}
