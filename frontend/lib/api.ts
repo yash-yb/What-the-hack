@@ -44,6 +44,34 @@ export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>("/health");
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  display_name: string;
+  role: "admin" | "analyst" | "viewer";
+}
+
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: "bearer";
+  expires_at: string;
+  user: AuthUser;
+}
+
+/** POST /auth/login. The backend identifies users by email; 401 on bad credentials, 429 when rate-limited. */
+export function login(email: string, password: string): Promise<TokenResponse> {
+  return request<TokenResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+}
+
+export function refresh(refreshToken: string): Promise<TokenResponse> {
+  return request<TokenResponse>("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: refreshToken }) });
+}
+
+export function logout(token: string): Promise<void> {
+  return fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).then(() => undefined);
+}
+
 export function listAlerts(token: string): Promise<AlertListResponse> {
   return request<AlertListResponse>("/alerts", {}, token);
 }
