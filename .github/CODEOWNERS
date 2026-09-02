@@ -1,14 +1,43 @@
 # Reviewers auto-requested by area. Order matters: the last matching pattern wins.
-*                       @DurgeshLabs
-/frontend/              @DurgeshLabs
-/backend/               @DurgeshLabs
-/database/              @DurgeshLabs
-/ai/                    @DurgeshLabs
-/tests/ml/              @DurgeshLabs
-/docs/research/         @DurgeshLabs
-/deployment/            @DurgeshLabs
-/docker-compose.yml     @DurgeshLabs
-/.github/               @DurgeshLabs
-# Replace @DurgeshLabs with each member's GitHub handle once they have accepted the repo
-# invitation: Adarsh (frontend), Shreya (backend, database), Yash (ai, tests/ml, docs/research),
-# Kshitij (docs), Arnav (deployment, compose, .github).
+# Handles verified against the repository's commit history on 2026-09-02.
+#   Durgesh  -> @DurgeshLabs      (team lead)
+#   Adarsh   -> @adarshchawrasia1 (frontend)
+#   Shreya   -> @beanscrazyxd     (backend, database)
+#   Yash     -> @yash-yb          (AI/ML, ML tests, research docs)
+#   Arnav    -> @arnavk-helios    (DevOps, compose, CI)
+#   Kshitij  -> add handle below once known (UI/UX, QA, documentation)
+
+# Default: the team lead reviews anything not matched below.
+*                                   @DurgeshLabs
+
+# Frontend
+/frontend/                          @adarshchawrasia1 @DurgeshLabs
+/tests/frontend/                    @adarshchawrasia1
+
+# Backend and database
+/backend/                           @beanscrazyxd @DurgeshLabs
+/database/                          @beanscrazyxd
+/tests/backend/                     @beanscrazyxd
+/docs/api/api-contracts.md          @beanscrazyxd @DurgeshLabs
+
+# AI/ML and data (the inference contract needs both the ML and backend owners)
+/ai/                                @yash-yb
+/tests/ml/                          @yash-yb
+/docs/research/                     @yash-yb
+/docs/api/feature_schema_contract.json   @yash-yb @beanscrazyxd
+/docs/api/ml-inference-contract.md       @yash-yb @beanscrazyxd
+/backend/app/schemas/inference.py        @beanscrazyxd @yash-yb
+
+# UI/UX, QA, documentation (add Kshitij's handle here)
+/docs/demo/                         @DurgeshLabs
+/docs/diagrams/                     @DurgeshLabs
+/tests/integration/                 @DurgeshLabs
+
+# DevOps, integration, CI
+/deployment/                        @arnavk-helios @DurgeshLabs
+/docker-compose.yml                 @arnavk-helios
+/backend/Dockerfile                 @arnavk-helios @beanscrazyxd
+/frontend/Dockerfile                @arnavk-helios @adarshchawrasia1
+/.github/                           @arnavk-helios @DurgeshLabs
+/.dockerignore                      @arnavk-helios
+/.env.example                       @arnavk-helios @DurgeshLabs
