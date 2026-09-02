@@ -1809,3 +1809,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# Backwards-compatible aliases used by tests/ml/test_tier5_adversarial_coverage.py.
+CICIDS_SHA256_CATALOG = CICIDS2017_SHA256_CATALOG
+CICIDSSyntheticGenerator = CICIDS2017SyntheticGenerator

@@ -444,6 +444,8 @@ Window t-2                Window t-1                 Window t
 
 ### 5.5 Complete 24-Dimensional Window Feature Vector ($\mathbf{x}_t \in \mathbb{R}^{24}$)
 
+> **Contract note (v1, 2026-09-02).** The frozen implementation contract in `docs/api/feature_schema_contract.json` carries 37 features: the 24 below plus protocol/flag ratios, per-second rates, and explicit `delta_*` features. `flow_rate_delta` and `flow_rate_accel` are represented in v1 by `delta_packet_rate`, `delta_byte_rate`, and `delta_packet_burst_score`; second-order acceleration is deferred to schema v2. Names in the contract are authoritative for code.
+
 | Index $k$ | Feature Identifier | Formal Mathematical Definition | Domain | Physical Cyber Interpretation |
 | :--- | :--- | :--- | :--- | :--- |
 | 1 | `flow_count` | $N(t) = |\mathcal{F}_{W(t)}|$ | $\mathbb{Z}_{\ge 0}$ | Total flow intensity in window |
@@ -671,7 +673,7 @@ graph TD
 4. **Stage 4: Gradient-Boosted Forecasting Engine (`predictions`)**
    - **Input**: Feature vector $\mathbf{x}_t \in \mathbb{R}^{24}$.
    - **Processing**: Evaluates trained XGBoost / LightGBM ensemble optimized with Focal Loss $\mathcal{L}_{\text{Focal}}$.
-   - **Output**: Forecast probability $p_t \in [0, 1] \to \text{risk\_score} = \lfloor 100 \times p_t \rceil$, $\text{risk\_level} \in \{\text{low}, \text{medium}, \text{high}, \text{critical}\}$, $\text{forecast\_horizon\_sec} = 180$.
+   - **Output**: Forecast probability $p_t \in [0, 1] \to \text{risk\_score} = \lfloor 100 \times p_t \rceil$, $\text{risk\_level} \in \{\text{low}, \text{medium}, \text{high}, \text{critical}\}$, $\text{forecast\_horizon\_sec} = 300 \text{ (default; 60/120/300 allowed)}$.
    - **Target Schema**: `predictions` (`prediction_id, window_id, risk_score, risk_level, confidence_score, forecast_horizon_sec`).
    - **Latency Budget**: $< 15\text{ms}$.
 
@@ -728,4 +730,4 @@ This document formalizes the theoretical, mathematical, and architectural founda
 ### Key Technical Guarantees:
 1. **Mathematical Soundness**: Complete measure-theoretic proofs of zero-lookahead ($\mathbf{x}_t \in m\mathfrak{F}_t$) and temporal split isolation ($\Delta_{\text{purge}} \ge W_{\text{size}} + H_{\text{horizon}}$).
 2. **Operational Value**: Unlocks a verified $60\text{s}–300\text{s}$ early-warning mitigation window ($\text{MLT} > 120\text{s}, \text{AUR} \ge 85\%$), converting reactive incident response into automated proactive defense.
-3. **Contract Alignment**: The 24-dimensional feature vector $\mathbf{x}_t$, sliding window parameters ($W=60\text{s}, \Delta t=10\text{s}, H=180\text{s}$), and 7-stage data contracts are frozen for downstream implementation across Deliverables R2 (`download_cicids2017.py`), R3 (`feature_schema_contract.json`), and R4 (`sample_flows_mini.csv`, `test_day1_contracts.py`).
+3. **Contract Alignment**: The 24-dimensional feature vector $\mathbf{x}_t$, sliding window parameters ($W=60\text{s}, \Delta t=10\text{s}, H=300\text{s}$), and 7-stage data contracts are frozen for downstream implementation across Deliverables R2 (`download_cicids2017.py`), R3 (`feature_schema_contract.json`), and R4 (`sample_flows_mini.csv`, `test_day1_contracts.py`).

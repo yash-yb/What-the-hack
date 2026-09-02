@@ -1,8 +1,11 @@
 # database/schema
 
-Plain-SQL snapshots of the schema, for judges or reviewers who want to read the DDL without
-running Alembic. Regenerate after a migration with:
+`schema.sql` is the PostgreSQL DDL for all 13 tables, generated from the SQLAlchemy models
+so judges and reviewers can read it without running Alembic. Regenerate after any model
+change:
 
 ```bash
-docker compose exec db pg_dump -U what_the_hack -d what_the_hack --schema-only > database/schema/schema.sql
+cd backend && PYTHONPATH=. .venv/bin/python ../database/schema/export_schema.py
 ```
+
+Schema changes themselves always go through an Alembic revision; this file is a snapshot.

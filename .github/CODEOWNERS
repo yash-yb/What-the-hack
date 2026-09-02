@@ -1,0 +1,14 @@
+# Reviewers auto-requested by area. Order matters: the last matching pattern wins.
+*                       @DurgeshLabs
+/frontend/              @DurgeshLabs
+/backend/               @DurgeshLabs
+/database/              @DurgeshLabs
+/ai/                    @DurgeshLabs
+/tests/ml/              @DurgeshLabs
+/docs/research/         @DurgeshLabs
+/deployment/            @DurgeshLabs
+/docker-compose.yml     @DurgeshLabs
+/.github/               @DurgeshLabs
+# Replace @DurgeshLabs with each member's GitHub handle once they have accepted the repo
+# invitation: Adarsh (frontend), Shreya (backend, database), Yash (ai, tests/ml, docs/research),
+# Kshitij (docs), Arnav (deployment, compose, .github).

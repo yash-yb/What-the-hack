@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -35,12 +36,22 @@ def build_windows(payload: WindowBuildRequest, user: User = Depends(require_admi
 @router.get("", response_model=TrafficWindowListResponse)
 def list_windows(
     traffic_source_id: UUID = Query(...),
+    limit: int = Query(default=200, ge=1, le=1000, description="Page size"),
+    after: datetime | None = Query(default=None, description="Return windows starting after this window_start (the previous page's next_cursor)"),
     user: User = Depends(require_viewer),
     db: Session = Depends(get_db),
 ) -> TrafficWindowListResponse:
-    windows = list(db.scalars(
+    query = (
         select(TrafficWindow)
         .where(TrafficWindow.traffic_source_id == traffic_source_id, TrafficWindow.scope_type == WindowScope.SOURCE)
         .order_by(TrafficWindow.window_start)
-    ))
-    return TrafficWindowListResponse(items=windows)
+        .limit(limit + 1)
+    )
+    if after is not None:
+        query = query.where(TrafficWindow.window_start > after)
+    windows = list(db.scalars(query))
+    next_cursor = None
+    if len(windows) > limit:
+        windows = windows[:limit]
+        next_cursor = windows[-1].window_start.isoformat()
+    return TrafficWindowListResponse(items=windows, next_cursor=next_cursor)

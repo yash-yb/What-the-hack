@@ -47,3 +47,26 @@ export function getHealth(): Promise<HealthResponse> {
 export function listAlerts(token: string): Promise<AlertListResponse> {
   return request<AlertListResponse>("/alerts", {}, token);
 }
+
+export interface TrafficWindow {
+  id: string;
+  traffic_source_id: string;
+  window_start: string;
+  window_end: string;
+  window_seconds: number;
+  flow_count: number;
+  packet_count: number;
+  byte_count: number;
+}
+
+export interface TrafficWindowListResponse {
+  items: TrafficWindow[];
+  next_cursor: string | null;
+}
+
+/** Windows are paginated: pass the previous page's next_cursor as `after` to continue. */
+export function listWindows(token: string, trafficSourceId: string, after?: string | null, limit = 200): Promise<TrafficWindowListResponse> {
+  const params = new URLSearchParams({ traffic_source_id: trafficSourceId, limit: String(limit) });
+  if (after) params.set("after", after);
+  return request<TrafficWindowListResponse>(`/windows?${params.toString()}`, {}, token);
+}

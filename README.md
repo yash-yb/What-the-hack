@@ -75,7 +75,11 @@ cd frontend && cp .env.example .env.local && npm install && npm run dev
 ```
 
 Demo accounts are created by `backend/scripts/seed_demo_users.py` (roles `admin`,
-`analyst`, `viewer`). Change the passwords before any deployment.
+`analyst`, `viewer`). The built-in demo passwords are accepted only while
+`ENVIRONMENT=development`; anywhere else the script refuses to run until
+`DEMO_ADMIN_PASSWORD`, `DEMO_ANALYST_PASSWORD`, and `DEMO_VIEWER_PASSWORD` are set.
+Likewise the backend refuses to start outside development with the default
+`JWT_SECRET_KEY` or one shorter than 32 characters.
 
 ### Try the pipeline
 
@@ -129,10 +133,12 @@ Details: `docs/architecture/`, `docs/api/api-contracts.md`, `docs/architecture/d
 
 ## Security
 
-JWT auth with Argon2 password hashing, RBAC on every protected route, Pydantic validation,
-upload size and type limits, CORS locked to the frontend origin, no secrets in the repo.
-This is a prototype: production hardening (HTTPS, rate limiting, secret rotation) is
-documented as future work.
+JWT auth with Argon2 password hashing and refresh-token revocation on logout, RBAC on every
+protected route, Pydantic validation, upload size and type limits, duplicate-upload
+rejection, rate limiting on login and upload, CORS locked to the frontend origin, a
+database-aware health check, and a startup guard that refuses weak JWT secrets outside
+development. Still future work for production: HTTPS termination, Redis-backed rate
+limits across workers, and secret rotation.
 
 ## Datasets and honesty
 
@@ -197,6 +203,151 @@ and PostgreSQL (Docker), frontend people need Node 20.
    the contract docs still match the code and that nothing hard-codes secrets or paths.
 8. **Merge and delete the branch.** `dev` is integrated end to end every two or three days;
    `main` is fast-forwarded from `dev` only after the full demo flow works.
+
+### How to push your changes, by role
+
+Every role follows the same shape: branch from `dev`, work in your folder, run your
+checks, push, open a pull request against `dev`. The details differ per area.
+
+#### Frontend (Adarsh)
+
+```bash
+git checkout dev && git pull
+git checkout -b feature/frontend-<screen>          # e.g. feature/frontend-alert-detail
+cd frontend && npm install && cp .env.example .env.local
+npm run dev                                        # http://localhost:3000, backend on :8000
+```
+
+Work in `frontend/app` (pages), `frontend/components`, and `frontend/lib/api.ts` (typed
+API calls; response shapes come from `docs/api/api-contracts.md`). Before pushing:
+
+```bash
+npm test && npm run build                          # type-check, then production build
+git add frontend
+git commit -m "feat: add alert detail page"
+git push -u origin feature/frontend-alert-detail
+```
+
+Open the PR against `dev` with screenshots of every new or changed screen, and note the
+empty, loading, and error states you handled.
+
+#### Backend and database (Shreya)
+
+```bash
+git checkout dev && git pull
+git checkout -b feature/backend-<topic>            # e.g. feature/backend-alerts-api
+docker compose up -d db
+./deployment/scripts/bootstrap_backend.sh          # venv, deps, migrations, demo users
+cd backend && PYTHONPATH=..:. .venv/bin/uvicorn app.main:app --reload
+```
+
+Work in `backend/app` (routes in `api/v1/routes`, logic in `services`, Pydantic in
+`schemas`, ORM in `models`). Schema changes get a new revision:
+
+```bash
+cd backend && .venv/bin/alembic revision -m "add alerts table"   # then edit the file
+.venv/bin/alembic upgrade head
+```
+
+Before pushing:
+
+```bash
+./deployment/scripts/run_tests.sh backend/tests    # unit + HTTP tests on SQLite
+cd backend && PYTHONPATH=. .venv/bin/python ../database/schema/export_schema.py   # if models changed
+git add backend database docs/api
+git commit -m "feat: add alerts list and detail API"
+git push -u origin feature/backend-alerts-api
+```
+
+Update `docs/api/api-contracts.md` in the same PR whenever a response shape changes.
+
+#### AI/ML and data (Yash)
+
+```bash
+git checkout dev && git pull
+git checkout -b feature/ml-<topic>                 # e.g. feature/ml-xgboost-baseline
+python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt pytest jsonschema pandas numpy
+```
+
+Work in `ai/` (`preprocessing`, `feature_engineering`, `training`, `evaluation`,
+`inference`) and `tests/ml`. Raw datasets go under `ai/datasets/data/` and model binaries
+under `ai/models/`; both are git-ignored, commit only small metadata JSON. If the feature
+contract changes:
+
+```bash
+# edit ai/inference/contract.py, bump CONTRACT_VERSION, then
+backend/.venv/bin/python ai/feature_engineering/build_feature_schema_contract.py
+# and mirror the change in backend/app/schemas/inference.py
+```
+
+Before pushing:
+
+```bash
+./deployment/scripts/run_tests.sh tests/ml backend/tests/test_inference_schemas.py
+git add ai tests/ml docs/api docs/research
+git commit -m "feat: train XGBoost baseline with next-window labels"
+git push -u origin feature/ml-xgboost-baseline
+```
+
+The PR must include the metrics table (precision, recall, F1, ROC-AUC, PR-AUC, lead time)
+and say which dataset split produced it.
+
+#### UI/UX, QA, and documentation (Kshitij)
+
+```bash
+git checkout dev && git pull
+git checkout -b docs/<topic>                       # e.g. docs/user-guide, or fix/<bug> for a bug you fixed
+```
+
+Wireframes and exports go in `docs/diagrams/`, test scenarios in `tests/integration/`
+(Markdown checklists are fine until they become code), the user guide and demo notes in
+`docs/demo/`. For a bug you found but cannot fix, open an issue with the *Bug report*
+template and the `bug` label; add `urgent` if it blocks the demo. Before pushing:
+
+```bash
+./deployment/scripts/run_tests.sh                  # only if you touched code
+git add docs tests/integration
+git commit -m "docs: add analyst user guide"
+git push -u origin docs/user-guide
+```
+
+#### DevOps, integration, and presentation (Arnav)
+
+```bash
+git checkout dev && git pull
+git checkout -b chore/<topic>                      # e.g. chore/compose-redis, chore/ci-postgres
+cp .env.example .env
+docker compose up --build                          # full stack: db, backend, frontend
+```
+
+Work in `deployment/`, `docker-compose.yml`, the two Dockerfiles, and `.github/`. Before pushing:
+
+```bash
+docker compose config --quiet                      # compose file validates
+docker compose up --build -d && curl -s localhost:8000/api/v1/health && docker compose down
+./deployment/scripts/run_tests.sh
+git add deployment docker-compose.yml backend/Dockerfile frontend/Dockerfile .github
+git commit -m "chore: add redis service for background jobs"
+git push -u origin chore/compose-redis
+```
+
+Run `./deployment/scripts/github_setup.sh` once (needs the GitHub CLI and admin rights)
+to create the issue labels and protect `main` and `dev`.
+
+#### Team lead (Durgesh)
+
+Reviews and merges. To integrate `dev` into `main` after the end-to-end check:
+
+```bash
+git checkout dev && git pull
+./deployment/scripts/run_tests.sh && (cd frontend && npm test && npm run build)
+git checkout main && git pull
+git merge --ff-only dev
+git push origin main
+```
+
+If `--ff-only` refuses, someone pushed to `main` directly; merge `main` into `dev` first,
+then retry.
 
 ### Rules that keep the demo safe
 

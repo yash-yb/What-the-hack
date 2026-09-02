@@ -16,13 +16,13 @@ All public endpoints are under `/api/v1`. Responses use ISO-8601 UTC timestamps 
 }
 ```
 
-Send `Authorization: Bearer <access_token>` on protected calls. Access tokens last 30 minutes by default; refresh tokens last 7 days and are rotated by `POST /api/v1/auth/refresh` with `{ "refresh_token": "<JWT>" }`. `POST /api/v1/auth/logout` revokes the supplied access token. A missing/invalid token returns `401`; an authenticated role without permission returns `403`.
+Send `Authorization: Bearer <access_token>` on protected calls. Access tokens last 30 minutes by default; refresh tokens last 7 days and are rotated by `POST /api/v1/auth/refresh` with `{ "refresh_token": "<JWT>" }`. Each access token carries the id of its paired refresh token, and `POST /api/v1/auth/logout` revokes both, so a logged-out session cannot be resumed with the old refresh token. A missing/invalid token returns `401`; an authenticated role without permission returns `403`.
 
 For the local demo, run `cd backend && PYTHONPATH=. python scripts/seed_demo_users.py` after `alembic upgrade head`. This creates the three role accounts shown above; change those passwords before any deployment.
 
 ## CSV ingestion (Day 4)
 
-`POST /api/v1/ingestion/upload` accepts an admin-authenticated multipart request with `file` (a UTF-8 `.csv`) and optional `source_name`. The maximum size is 50 MB by default. Required CSV headers are `timestamp`, `src_ip`, `dst_ip`, `protocol`, `packets`, and `bytes`; invalid rows are skipped and counted. Missing required headers, empty files, invalid encoding, unsupported file types, and oversized files receive clear 4xx responses.
+`POST /api/v1/ingestion/upload` accepts an admin-authenticated multipart request with `file` (a UTF-8 `.csv`) and optional `source_name`. The maximum size is 50 MB by default. Required CSV headers are `timestamp`, `src_ip`, `dst_ip`, `protocol`, `packets`, and `bytes`; invalid rows are skipped and counted. `protocol` is normalised to `TCP`, `UDP`, `ICMP`, or `OTHER` (IANA numbers accepted); `flags` must be `NONE` or a comma-separated list of `SYN`, `ACK`, `FIN`, `RST`, `PSH`, `URG`, `ECE`, `CWE`; `failed_conn_info` follows the RawFlow contract (`CLEAN`, `SYN_NO_ACK`, `RST_ABORT`, `ZERO_WIN`, `NA`). Rows that break those rules are skipped. Missing required headers, empty files, invalid encoding, unsupported file types, and oversized files receive clear 4xx responses. Uploading a file whose content was already ingested into the same source returns `409` with the existing job id, because windows aggregate every flow of a source and a repeat would double every count.
 
 The `201` response and `GET /api/v1/ingestion/{job_id}/status` return the persisted job with status and accepted/skipped row counts. Uploading is admin-only; all authenticated roles can read a job's status.
 
