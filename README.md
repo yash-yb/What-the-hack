@@ -129,6 +129,32 @@ Use `docker compose logs -f backend` if the backend is not healthy; its final st
 must say that Alembic migrations completed and Uvicorn is listening on port 8000. Use
 `Ctrl+C` to stop following logs without stopping the detached stack.
 
+### First successful demo run
+
+1. Visit [http://127.0.0.1:3000/login](http://127.0.0.1:3000/login).
+2. Sign in as `analyst@what-the-hack.local` with `AnalystPass123!`.
+3. Open **Upload** and select `ai/datasets/cleaned/cicids2017_archive_clean.csv` from
+   this repository.
+4. Wait until the job says `completed`, then choose **Open your live dashboard**.
+
+The small `sample_data/sample_flows_mini.csv` checks ingestion only; it is intentionally too
+short for the ten one-minute windows required by the model. Use the bundled cleaned replay for
+the first dashboard forecast.
+
+### If startup fails
+
+```bash
+docker compose ps                         # services should be running; backend should be healthy
+docker compose logs -f backend             # migration, database, or checkpoint errors
+docker compose logs -f frontend            # browser build/start errors
+docker compose down --remove-orphans       # stop a stale stack without deleting the database
+docker compose up --build -d
+```
+
+If port `3000`, `5432`, or `8000` is already occupied, stop the other project using that port.
+Use `docker compose down -v` only when intentionally deleting all local demo data and starting
+from an empty database.
+
 ### If you downloaded a ZIP instead of cloning
 
 Extract the current GitHub ZIP, open Terminal in the extracted `What-the-hack-main`
@@ -227,6 +253,21 @@ WTH_ANALYST_PASSWORD='AnalystPass123!' bash deployment/scripts/start_live_demo.s
 Replace `en0` with the interface confirmed by `networksetup -listallhardwareports`.
 Docker runs the application and bridge; Zeek stays on the host because Docker Desktop
 cannot observe the Mac's physical Wi-Fi interface directly.
+
+### Live Zeek quick run
+
+Use this only on a network/interface you own or are explicitly authorised to monitor:
+
+```bash
+brew install zeek
+networksetup -listallhardwareports
+WTH_ANALYST_PASSWORD='AnalystPass123!' bash deployment/scripts/start_live_demo.sh en0
+```
+
+Keep the sensor running until it has collected at least ten distinct one-minute windows. In the
+app select **Live sensor**, click **Refresh**, then open the sensor dashboard. A live forecast
+is a risk lead based on connection metadata, not a confirmed attack. See
+[the full Zeek runbook](docs/demo/live-zeek-ingestion.md) for manual setup and troubleshooting.
 
 ## Interpreting the forecast
 
@@ -327,6 +368,34 @@ For an authorised Zeek capture, use the included `label_zeek_capture` converter 
 reviewed `start,end,label` incident/exercise timeline, run `preflight_dataset`, then train and
 evaluate the same split. Full commands and safety requirements are in
 [the live Zeek runbook](docs/demo/live-zeek-ingestion.md#train-for-your-authorised-environment).
+
+### Train from an authorised labeled Zeek capture
+
+First create `labels.csv` with reviewed, timezone-aware intervals. Do not label unknown traffic
+as benign merely to enlarge the dataset:
+
+```csv
+start,end,label
+2026-09-20T09:00:00Z,2026-09-20T09:30:00Z,BENIGN
+2026-09-20T09:30:00Z,2026-09-20T09:35:00Z,SSH-Patator
+```
+
+Then convert, preflight, train, evaluate, and restart the backend:
+
+```bash
+PYTHONPATH=.:backend python -m ai.datasets.label_zeek_capture \
+  ~/zeek-live/conn.log labels.csv --out data/zeek-training.csv
+PYTHONPATH=.:backend python -m ai.evaluation.preflight_dataset \
+  data/zeek-training.csv --test-fraction 0.2
+PYTHONPATH=.:backend python -m ai.training.train_world_model \
+  data/zeek-training.csv --out ai/models/world_model.pt --epochs 30 --test-fraction 0.2
+PYTHONPATH=.:backend python -m ai.evaluation.evaluate_models \
+  data/zeek-training.csv ai/models/world_model.pt --test-fraction 0.2 --max-false-positive-rate 0.05
+docker compose restart backend
+```
+
+Stop if preflight fails: it means the chronological training or held-out split lacks benign or
+attack windows, so a reported metric would be misleading.
 
 ### Public dataset selection
 
