@@ -319,6 +319,11 @@ docker compose restart backend
 
 A successful run is not proof of generalization: compare against the logistic baseline and
 test on a separate timestamped dataset before claiming accuracy.
+
+For an authorised Zeek capture, use the included `label_zeek_capture` converter with a
+reviewed `start,end,label` incident/exercise timeline, run `preflight_dataset`, then train and
+evaluate the same split. Full commands and safety requirements are in
+[the live Zeek runbook](docs/demo/live-zeek-ingestion.md#train-for-your-authorised-environment).
 For final research, pass original timestamped CICIDS files instead; full preparation,
 training, and evaluation instructions are in [the model runbook](docs/demo/world-model-runbook.md).
 

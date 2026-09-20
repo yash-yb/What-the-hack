@@ -86,6 +86,46 @@ In the web app choose **Live sensor** → **Refresh** → **Open dashboard**. Th
 
 The forecast needs the model artifact plus at least 10 completed 60-second windows. For a short demo, keep the sensor running long enough to collect them. This MVP rebuilds source windows after each batch; production deployment should use a durable queue and incremental aggregation instead.
 
+## Train for your authorised environment
+
+Live Zeek connection logs do **not** include ground-truth attacks, so they cannot be used to
+retrain the model directly. Record an approved exercise/incident timeline separately, review
+it, then convert only that authorised capture into the same normalized flow CSV the trainer
+uses. Never mark unknown traffic as benign simply to produce a bigger dataset.
+
+Create `labels.csv` with exactly `start,end,label` columns. Timestamps must include a timezone;
+use supported canonical labels such as `BENIGN`, `PortScan`, `SSH-Patator`, `DDoS`, or the
+labels in [the mapping reference](../research/mitre_stage_mapping.md).
+
+```csv
+start,end,label
+2026-09-20T09:00:00Z,2026-09-20T09:30:00Z,BENIGN
+2026-09-20T09:30:00Z,2026-09-20T09:35:00Z,SSH-Patator
+```
+
+Convert a saved JSON `conn.log`. The default is conservative: connections outside reviewed
+intervals are excluded. Add `--assume-uncovered-benign` only when the capture gaps are known
+to be normal traffic.
+
+```bash
+PYTHONPATH=.:backend python -m ai.datasets.label_zeek_capture \
+  ~/zeek-live/conn.log labels.csv --out data/authorised-zeek-training.csv
+
+PYTHONPATH=.:backend python -m ai.evaluation.preflight_dataset \
+  data/authorised-zeek-training.csv --test-fraction 0.2
+```
+
+Preflight exits nonzero when chronological training or held-out partitions do not contain both
+benign and attack windows. Fix the capture coverage rather than changing the score. Only after
+preflight succeeds should you train and evaluate the same split:
+
+```bash
+PYTHONPATH=.:backend python -m ai.training.train_world_model \
+  data/authorised-zeek-training.csv --out ai/models/world_model.pt --epochs 30 --test-fraction 0.2
+PYTHONPATH=.:backend python -m ai.evaluation.evaluate_models \
+  data/authorised-zeek-training.csv ai/models/world_model.pt --test-fraction 0.2
+```
+
 ## Troubleshooting
 
 - **“Waiting for Zeek to create conn.log”**: ensure the Zeek command is still running and that its working directory is `~/zeek-live`.
