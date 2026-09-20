@@ -309,6 +309,19 @@ LABEL_MAPPING: Dict[str, str] = {
     "Infilteration": "Infiltration",
     "infiltration": "Infiltration",
     "infilteration": "Infiltration",
+    # CSE-CIC-IDS2018 labels: normalize them into the stable v1 taxonomy. The
+    # 2018 corpus uses different punctuation/capitalisation and two DDoS variants.
+    "FTP-BruteForce": "FTP_Patator",
+    "SSH-Bruteforce": "SSH_Patator",
+    "Brute Force -Web": "Web_BruteForce",
+    "Brute Force -XSS": "Web_XSS",
+    "SQL Injection": "Web_SqlInjection",
+    "DoS attacks-GoldenEye": "DoS_GoldenEye",
+    "DoS attacks-Hulk": "DoS_Hulk",
+    "DoS attacks-SlowHTTPTest": "DoS_Slowhttptest",
+    "DoS attacks-Slowloris": "DoS_Slowloris",
+    "DDOS attack-LOIC-UDP": "DDoS_LOIC",
+    "DDOS attack-HOIC": "DDoS_LOIC",
 }
 
 
@@ -612,6 +625,10 @@ def map_cicids_to_raw_flows(
             "Total Fwd Packet": "Total Fwd Packets", "Total Bwd packets": "Total Backward Packets",
             "Total Length of Fwd Packet": "Total Length of Fwd Packets",
             "Total Length of Bwd Packet": "Total Length of Bwd Packets",
+            # CSE-CIC-IDS2018 CICFlowMeter-v3 abbreviations.
+            "Src IP": "Source IP", "Dst IP": "Destination IP",
+            "Tot Fwd Pkts": "Total Fwd Packets", "Tot Bwd Pkts": "Total Backward Packets",
+            "TotLen Fwd Pkts": "Total Length of Fwd Packets", "TotLen Bwd Pkts": "Total Length of Bwd Packets",
         }
         df = df.rename(columns={source: target for source, target in aliases.items() if source in df.columns and target not in df.columns})
 

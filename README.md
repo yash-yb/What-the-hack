@@ -313,17 +313,33 @@ then restart the backend:
 
 ```bash
 PYTHONPATH=.:backend python -m ai.evaluation.evaluate_models \
-  ai/datasets/cleaned/cicids2017_archive_clean.csv ai/models/world_model.pt --test-fraction 0.5
+  ai/datasets/cleaned/cicids2017_archive_clean.csv ai/models/world_model.pt --test-fraction 0.5 \
+  --max-false-positive-rate 0.05
 docker compose restart backend
 ```
 
 A successful run is not proof of generalization: compare against the logistic baseline and
-test on a separate timestamped dataset before claiming accuracy.
+test on a separate timestamped dataset before claiming accuracy. The evaluation output also
+recommends a held-out threshold that meets the requested false-positive-rate budget; do not
+use it in production until it passes the same check on a separate, live-like validation set.
 
 For an authorised Zeek capture, use the included `label_zeek_capture` converter with a
 reviewed `start,end,label` incident/exercise timeline, run `preflight_dataset`, then train and
 evaluate the same split. Full commands and safety requirements are in
 [the live Zeek runbook](docs/demo/live-zeek-ingestion.md#train-for-your-authorised-environment).
+
+### Public dataset selection
+
+Use public datasets only after checking that they preserve every field the 37-feature contract
+needs: timestamp, source/destination IP and port, protocol, packet/byte counts, duration, and
+a trustworthy label. The official CSE-CIC-IDS2018 processed ML CSVs are useful for conventional
+flow-feature experiments, but they omit source and destination IPs. They must **not** train this
+model because it would fabricate host-diversity and entropy features used in live Zeek scoring.
+The official raw CSE-CIC-IDS2018 captures retain the required evidence but are approximately
+453 GB, so use a prepared flow export that retains addresses or a deliberately provisioned
+research storage environment. The official dataset pages describe the available CICIDS2017 and
+CSE-CIC-IDS2018 sources and their labels: [CICIDS2017](https://www.unb.ca/cic/datasets/ids-2017.html)
+and [CSE-CIC-IDS2018](https://www.unb.ca/cic/datasets/ids-2018.html).
 For final research, pass original timestamped CICIDS files instead; full preparation,
 training, and evaluation instructions are in [the model runbook](docs/demo/world-model-runbook.md).
 

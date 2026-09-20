@@ -41,6 +41,16 @@ It writes `ai/models/world_model.pt` locally. The repository includes one small
 demo-trained checkpoint so a fresh clone can run the dashboard; do not overwrite it
 with a new artifact unless you intend to version and review that training run.
 
+### Select external data by feature fidelity, not by dataset name
+
+Before adding a public source, verify that it retains timestamp, both IP addresses and ports,
+protocol, packets, bytes, duration, and labels. The official CSE-CIC-IDS2018 processed ML CSV
+files do **not** contain source/destination IP addresses, so they cannot be used with this
+project's host-diversity, entropy, or inbound/outbound features without inventing data. Do not
+train on them. Use an address-preserving flow export or, if storage and authorization permit,
+derive a reviewed flow export from the official raw captures. Keep that source separate as an
+external evaluation set until the model has passed its validation gate.
+
 ### Compact public archive variant
 
 If the downloaded archive contains `monday.csv` through `friday.csv` with decimal-IP
@@ -60,6 +70,17 @@ for final research metrics. Train the cleaned replay with:
 PYTHONPATH=.:backend python -m ai.training.train_world_model \
   ai/datasets/cleaned/cicids2017_archive_clean.csv --epochs 15
 ```
+
+Choose the alert threshold from held-out validation rather than leaving the dashboard on a
+default threshold:
+
+```bash
+PYTHONPATH=.:backend python -m ai.evaluation.evaluate_models \
+  path/to/cicids.csv ai/models/world_model.pt --test-fraction 0.2 --max-false-positive-rate 0.05
+```
+
+The report prints the highest-recall threshold that stays within the requested held-out false
+positive-rate budget. Re-run this check on a separate live-like dataset before deployment.
 
 ## 4. Test the trained model in Python
 

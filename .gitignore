@@ -66,3 +66,5 @@ ai/models/*.pt
 ai/models/*.pth
 ai/models/*.safetensors
 !ai/models/world_model.pt
+# Downloaded external datasets are local research inputs, never repository artifacts.
+ai/datasets/external/

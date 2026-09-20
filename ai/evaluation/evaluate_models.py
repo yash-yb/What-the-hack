@@ -25,6 +25,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 
 from ai.evaluation.lead_time import WINDOW_SECONDS, lead_time_metrics
+from ai.evaluation.calibration import calibrate_threshold
 from ai.feature_engineering.labeled_windows import build_labeled_windows
 from ai.inference.forecast_engine import load_model
 from ai.training.train_world_model import SEQ_LEN, purge_size, require_evaluable_split, split_index
@@ -49,7 +50,7 @@ def classification_metrics(y_true: np.ndarray, y_score: np.ndarray, threshold: f
     }
 
 
-def main(csv_path: str, checkpoint_path: str, test_fraction: float, threshold: float) -> None:
+def main(csv_path: str, checkpoint_path: str, test_fraction: float, threshold: float, max_false_positive_rate: float) -> None:
     data = build_labeled_windows(csv_path)
     total = len(data.features)
     boundary = split_index(total, test_fraction)
@@ -99,6 +100,11 @@ def main(csv_path: str, checkpoint_path: str, test_fraction: float, threshold: f
         "threshold": threshold,
         "logistic_regression": classification_metrics(targets, baseline_aligned, threshold),
         "world_model": classification_metrics(targets, world_scores, threshold),
+        "validation_thresholds": {
+            "policy": "Choose the highest-recall held-out threshold at or below the requested false-positive-rate budget. Revalidate on an external dataset before deployment.",
+            "logistic_regression": calibrate_threshold(targets, baseline_aligned, max_false_positive_rate),
+            "world_model": calibrate_threshold(targets, world_scores, max_false_positive_rate),
+        },
         "world_model_early_warning": lead_time_metrics(targets, world_scores, threshold),
         "logistic_regression_early_warning": lead_time_metrics(targets, baseline_aligned, threshold),
     }
@@ -113,5 +119,6 @@ if __name__ == "__main__":
     parser.add_argument("checkpoint_path")
     parser.add_argument("--test-fraction", type=float, default=0.2, help="Must match the value used for training.")
     parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
+    parser.add_argument("--max-false-positive-rate", type=float, default=0.05, help="Held-out FPR budget for the recommended operational threshold.")
     args = parser.parse_args()
-    main(args.csv_path, args.checkpoint_path, args.test_fraction, args.threshold)
+    main(args.csv_path, args.checkpoint_path, args.test_fraction, args.threshold, args.max_false_positive_rate)
