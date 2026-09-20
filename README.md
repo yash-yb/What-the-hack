@@ -525,12 +525,12 @@ step-by-step "how to push your changes" guide for each role.
 
 | Member | Name | Owns |
 | --- | --- | --- |
-| 1 | Durgesh | Team lead: scope, architecture, integration |
-| 2 | Adarsh | Frontend dashboard |
-| 3 | Shreya | Backend and database |
-| 4 | Yash Bhanushali | AI/ML and data |
-| 5 | Kshitij | UI/UX, QA, documentation |
-| 6 | Arnav | DevOps, deployment, presentation |
+| 1 | Adarsh | Team lead + Frontend development + PPT storyline/narrative |
+| 2 | Shreya | Backend development (APIs, auth, DB) + built the AI/LSTM forecasting model |
+| 3 | Yash Bhanushali | AI model support + research work |
+| 4 | Durgesh | AI model refinement |
+| 5 | Kshitij | Testing (backend + model validation) |
+| 6 | Arnav | PPT design + documentation |
 
 Start from `dev`, never push to `main`, and open the pull request against `dev`.
 Documentation index: [`docs/README.md`](docs/README.md).
