@@ -30,7 +30,9 @@ from ai.inference.contract import FEATURE_NAMES, FEATURE_SCHEMA_VERSION
 from ai.models.world_model import WorldModel
 
 SEQ_LEN, BATCH_SIZE, LR = 10, 64, 1e-3
-DEFAULT_TEST_FRACTION = 0.2
+# The bundled replay's last 20% is attack-only.  Half keeps both classes in its
+# held-out segment; real data still has to pass the explicit split checks below.
+DEFAULT_TEST_FRACTION = 0.5
 
 
 def split_index(total: int, test_fraction: float) -> int:
@@ -46,6 +48,23 @@ def purge_size(seq_len: int = SEQ_LEN) -> int:
     dropping seq_len windows before the split removes every overlapping sample.
     """
     return seq_len
+
+
+def require_evaluable_split(risk_labels: np.ndarray, train_end: int, boundary: int) -> None:
+    """Refuse a split that cannot support a binary forecasting claim.
+
+    AUC/F1 from a single-class train or test partition is not merely weak—it is
+    undefined or misleading.  Users must provide a longer/more varied capture or choose
+    a chronological split that contains benign and attack windows on both sides.
+    """
+    partitions = {"training": risk_labels[:train_end], "held-out": risk_labels[boundary:]}
+    for name, values in partitions.items():
+        present = {int(value) for value in values.tolist()}
+        if present != {0, 1}:
+            raise ValueError(
+                f"The {name} partition has classes {sorted(present)}, not both benign (0) and attack (1). "
+                "Do not train or report metrics on this split; use a longer, chronologically varied capture."
+            )
 
 
 class WindowSequenceDataset(Dataset):
@@ -100,6 +119,7 @@ def main(
             f"Not enough training windows after the purge embargo: {train_end} usable of {total}. "
             f"Use a longer capture or a smaller --test-fraction."
         )
+    require_evaluable_split(windows.risk_labels, train_end, boundary)
 
     print(
         f"windows={total} train=[0,{train_end}) purged=[{train_end},{boundary}) test=[{boundary},{total}) "
@@ -157,6 +177,7 @@ def main(
                 "train_windows": train_end,
                 "purged_windows": purge,
                 "positive_rate_train": float(windows.risk_labels[:train_end].mean()),
+                "positive_rate_held_out": float(windows.risk_labels[boundary:].mean()),
                 "pos_weight": float(pos_weight),
                 "final_dynamics_loss": dynamics_loss,
                 "final_risk_stage_loss": stage_loss,

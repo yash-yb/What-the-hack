@@ -1,6 +1,8 @@
-# World-model MITRE stage mapping
+# World-model MITRE stage and attack-label reference
 
-The world model never learns the mapping from a raw dataset label to an ATT&CK-style phase. `ai/inference/mitre_stage_map.py` owns that fixed mapping, so training and the prediction display cannot drift.
+`ai/inference/mitre_stage_map.py` owns the coarse six-class stage mapping and
+`ai/inference/mitre_attack_map.py` owns the per-label ATT&CK reference. This prevents the
+training pipeline and dashboard from silently drifting apart.
 
 | CICIDS2017 label/family | World-model stage |
 | --- | --- |
@@ -9,9 +11,27 @@ The world model never learns the mapping from a raw dataset label to an ATT&CK-s
 | FTP/SSH Patator, web attacks, Heartbleed | Initial Access |
 | Infiltration | Lateral Movement |
 | Botnet | Command & Control |
-| DoS / DDoS | Exfiltration / Impact |
+| DoS / DDoS | Impact |
 
-The final bucket intentionally groups disruptive late-stage outcomes for this demo; it is not a claim that DoS is exfiltration.
+The final bucket is **Impact**. It intentionally groups disruptive outcomes for this demo;
+it is never a claim that DoS is data exfiltration.
+
+## Individual supported attack labels
+
+The LSTM currently forecasts a **coarse stage**, not an exact attack label. The table below
+is therefore a transparent reference for the labels compatible with a stage, not proof that
+the forecast observed the named technique. Confirm every alert with endpoint, identity, and
+where appropriate packet/application telemetry.
+
+| Training label | ATT&CK tactic | Candidate technique | Why confirmation is required |
+| --- | --- | --- | --- |
+| `PortScan` | Discovery | T1046 Network Service Scanning | Flow diversity can resemble authorized inventory scans. |
+| `FTP_Patator`, `SSH_Patator`, `Web_BruteForce` | Credential Access | T1110 Brute Force | Authentication logs establish whether credentials were actually guessed. |
+| `Web_XSS`, `Web_SqlInjection`, `Heartbleed` | Initial Access | T1190 Exploit Public-Facing Application | A flow record contains no payload or exploit result. |
+| `Infiltration` | Lateral Movement | T1021 Remote Services | CICIDS' broad label does not identify a remote-service technique. |
+| `Botnet` | Command and Control | T1071 Application Layer Protocol | DNS, process, and timing evidence is needed to establish C2. |
+| `DoS_Hulk`, `DoS_GoldenEye`, `DoS_Slowloris`, `DoS_Slowhttptest` | Impact | T1499 Endpoint Denial of Service | High volume alone can be legitimate. |
+| `DDoS_LOIC` | Impact | T1498 Network Denial of Service | Confirm source distribution and upstream telemetry. |
 
 ## Training input
 

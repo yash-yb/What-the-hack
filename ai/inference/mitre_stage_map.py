@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from ai.inference.contract import LABEL_TO_FAMILY, MITRE_STAGES
+from ai.inference.mitre_attack_map import candidates_for_stage
 
-__all__ = ["MITRE_STAGES", "stage_for_label", "risk_for_label"]
+__all__ = ["MITRE_STAGES", "stage_for_label", "risk_for_label", "candidates_for_stage"]
 
 _FAMILY_TO_STAGE = {
     "Reconnaissance": 1, "BruteForce": 2, "WebAttack": 2,

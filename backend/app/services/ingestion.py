@@ -7,6 +7,21 @@ from typing import Any
 
 REQUIRED_COLUMNS = {"timestamp", "src_ip", "dst_ip", "protocol", "packets", "bytes"}
 
+# Common CSV exports spell the same flow concepts differently.  We accept only aliases
+# with the same units and meaning; an unknown/ambiguous field is deliberately not guessed.
+HEADER_ALIASES = {
+    "time": "timestamp", "ts": "timestamp", "event_time": "timestamp", "flow_start": "timestamp",
+    "source_ip": "src_ip", "sourceip": "src_ip", "src": "src_ip", "srcaddr": "src_ip", "id_orig_h": "src_ip",
+    "destination_ip": "dst_ip", "destinationip": "dst_ip", "dst": "dst_ip", "dstaddr": "dst_ip", "id_resp_h": "dst_ip",
+    "source_port": "src_port", "sourceport": "src_port", "sport": "src_port", "id_orig_p": "src_port",
+    "destination_port": "dst_port", "destinationport": "dst_port", "dport": "dst_port", "id_resp_p": "dst_port",
+    "proto": "protocol", "ip_protocol": "protocol",
+    "packet_count": "packets", "packetcount": "packets", "total_packets": "packets",
+    "byte_count": "bytes", "bytecount": "bytes", "total_bytes": "bytes",
+    "duration": "duration_ms", "duration_milliseconds": "duration_ms",
+    "tcp_flags": "flags", "conn_state": "failed_conn_info",
+}
+
 # Values follow docs/api/feature_schema_contract.json (RawFlow). Legacy truthy/falsy spellings
 # are kept so older CSVs still load; anything else is an invalid row.
 PROTOCOLS = {"TCP", "UDP", "ICMP", "OTHER"}
@@ -46,7 +61,12 @@ class CsvValidationError(ValueError):
 
 def parse_csv_flows(content: str) -> ParseResult:
     reader = csv.DictReader(StringIO(content))
-    headers = set(reader.fieldnames or [])
+    raw_headers = reader.fieldnames or []
+    normalized_headers = [_canonical_header(header) for header in raw_headers]
+    duplicates = {name for name in normalized_headers if normalized_headers.count(name) > 1 and name in REQUIRED_COLUMNS}
+    if duplicates:
+        raise CsvValidationError(f"CSV maps multiple columns to the same required field: {', '.join(sorted(duplicates))}")
+    headers = set(normalized_headers)
     missing_columns = REQUIRED_COLUMNS - headers
     if missing_columns:
         raise CsvValidationError(f"CSV is missing required columns: {', '.join(sorted(missing_columns))}")
@@ -54,13 +74,22 @@ def parse_csv_flows(content: str) -> ParseResult:
     flows: list[ParsedFlow] = []
     total_rows = 0
     skipped_rows = 0
-    for row in reader:
+    for raw_row in reader:
         total_rows += 1
         try:
+            row = {normalized_headers[index]: value for index, value in enumerate(raw_row.values())}
             flows.append(parse_row(row))
         except (TypeError, ValueError):
             skipped_rows += 1
     return ParseResult(flows=flows, total_rows=total_rows, skipped_rows=skipped_rows)
+
+
+def _canonical_header(value: str | None) -> str:
+    """Return a canonical field name while preserving unknown columns as metadata."""
+    if value is None:
+        return ""
+    compact = "_".join("".join(char.lower() if char.isalnum() else " " for char in value.lstrip("\ufeff")).split())
+    return HEADER_ALIASES.get(compact, compact)
 
 
 def parse_row(row: dict[str, str | None]) -> ParsedFlow:
@@ -131,6 +160,13 @@ def parse_failed_connection(value: str | None) -> bool | None:
 
 
 def parse_timestamp(value: str) -> datetime:
+    # Zeek and several NetFlow exporters use Unix epoch seconds.  They are unambiguous;
+    # unlike naive date strings they can safely be treated as UTC.
+    try:
+        if value.replace(".", "", 1).isdigit():
+            return datetime.fromtimestamp(float(value), tz=timezone.utc)
+    except (OverflowError, OSError):
+        raise ValueError("timestamp epoch is out of range") from None
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
         raise ValueError("timestamp must include a timezone")

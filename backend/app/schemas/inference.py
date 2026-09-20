@@ -21,7 +21,7 @@ LOW_CONFIDENCE_THRESHOLD = 0.55
 RiskLevel = Literal["low", "medium", "high", "critical"]
 Horizon = Literal[60, 120, 300]
 Stage = Literal["S0_BENIGN_BASELINE", "S1_RECON_PRECURSOR", "S2_WEAPONIZATION_ESCALATION", "S3_ACTIVE_PEAK"]
-MitreStage = Literal["Benign", "Reconnaissance", "Initial Access", "Lateral Movement", "Command & Control", "Exfiltration / Impact"]
+MitreStage = Literal["Benign", "Reconnaissance", "Initial Access", "Lateral Movement", "Command & Control", "Impact"]
 AttackType = Literal[
     "BENIGN",
     "PortScan", "DoS_Hulk", "DoS_GoldenEye", "DoS_Slowloris", "DoS_Slowhttptest", "Heartbleed", "DDoS_LOIC",

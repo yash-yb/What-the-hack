@@ -26,6 +26,23 @@ def test_parser_rejects_missing_required_columns() -> None:
         parse_csv_flows("timestamp,dst_ip,protocol,packets,bytes\n2026-08-28T18:00:00Z,1.1.1.1,TCP,1,2\n")
 
 
+def test_parser_accepts_safe_common_header_aliases_and_epoch_time() -> None:
+    exported = """time,Source IP,Destination IP,Source Port,Destination Port,proto,packet_count,byte_count,duration,label
+1760000000,192.168.1.5,8.8.8.8,50000,53,17,2,140,12,BENIGN
+"""
+    result = parse_csv_flows(exported)
+    assert result.skipped_rows == 0
+    flow = result.flows[0]
+    assert flow.observed_at.tzinfo is not None
+    assert flow.protocol == "UDP"
+    assert flow.packet_count == 2 and flow.byte_count == 140 and flow.duration_ms == 12
+
+
+def test_parser_rejects_ambiguous_required_aliases() -> None:
+    with pytest.raises(CsvValidationError, match="multiple columns"):
+        parse_csv_flows("timestamp,time,src_ip,dst_ip,protocol,packets,bytes\n2026-08-28T18:00:00Z,1,1.1.1.1,2.2.2.2,TCP,1,2\n")
+
+
 def test_sample_dataset_loads_without_skips() -> None:
     result = parse_csv_flows(SAMPLE_CSV.read_text(encoding="utf-8"))
     assert result.total_rows == 120

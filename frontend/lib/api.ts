@@ -208,6 +208,7 @@ export interface Forecast {
   model_version: string;
   window_count: number;
   ood_features?: { feature: string; z_score: number }[];
+  attack_candidates?: { label: string; family: string; tactic: string; technique_id: string; technique: string }[];
   risk_timeline: { step: number; risk_score: number; stage: string | null; stage_confidence?: number }[];
   top_feature_contributors: FeatureContribution[];
   explanation_summary?: string;

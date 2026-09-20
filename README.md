@@ -101,12 +101,33 @@ world model forecast a peak risk of 78%.
 
 ### Run the complete demo in Docker
 
+Prerequisite: Docker Desktop (or Docker Engine plus the Compose plugin) is running. Check
+both commands before troubleshooting the app itself:
+
+```bash
+docker --version
+docker compose version
+```
+
 ```bash
 git clone https://github.com/DurgeshLabs/What-the-hack.git
 cd What-the-hack
 cp .env.example .env
-docker compose up --build
+docker compose up --build -d
+docker compose ps
 ```
+
+Wait until `db`, `backend`, and `frontend` are `running` (the backend must become
+`healthy`), then seed accounts and open the application:
+
+```bash
+docker compose exec backend python scripts/seed_demo_users.py
+open http://127.0.0.1:3000/login       # macOS; otherwise paste this address into a browser
+```
+
+Use `docker compose logs -f backend` if the backend is not healthy; its final startup line
+must say that Alembic migrations completed and Uvicorn is listening on port 8000. Use
+`Ctrl+C` to stop following logs without stopping the detached stack.
 
 ### If you downloaded a ZIP instead of cloning
 
@@ -115,7 +136,8 @@ folder, then run the same two commands:
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build -d
+docker compose ps
 ```
 
 The ZIP includes the cleaned replay and the trained checkpoint, so Git and the original
@@ -132,7 +154,9 @@ not use `docker compose down -v` unless you intend to remove its local database.
 | PostgreSQL | localhost:5432 (`what_the_hack` / `what_the_hack`) |
 
 `docker compose down` stops the stack and keeps the database volume. Only use
-`docker compose down -v` when you intend to delete local data.
+`docker compose down -v` when you intend to delete local data. If a previous run is stuck,
+use `docker compose down --remove-orphans`, then repeat the startup commands; this does not
+delete the database volume.
 
 If your browser does not resolve `localhost`, use `127.0.0.1` exactly as shown above.
 
@@ -246,6 +270,21 @@ Recommended public sources: [official CICIDS2017](https://www.unb.ca/cic/dataset
 deployment is IoT/industrial traffic. Each non-CIC dataset needs an explicit normalizer and
 label mapping before it can train this model; do not upload it blindly and expect valid scores.
 
+### Dataset compatibility and retraining
+
+The live app accepts the normalized flow contract (`timestamp`, `src_ip`, `dst_ip`,
+`protocol`, `packets`, `bytes`; optional ports, duration, flags, failure state, and `label`).
+It also accepts safe common CSV aliases such as `Source IP`, `Destination IP`, `proto`,
+`packet_count`, `byte_count`, and Unix-epoch `time`/`ts`. This makes compatible NetFlow/Zeek
+CSV exports easier to ingest, but it does **not** make arbitrary datasets interchangeable:
+packet captures, EVE JSON, and exporters with different units or unknown labels must be
+normalized explicitly. The importer rejects ambiguous columns instead of guessing.
+
+For supervised training, every 60-second window needs a trustworthy `label`. Add a dataset
+adapter and label-to-ATT&CK mapping before training on a new corpus, then run the contract
+and evaluation checks below. The trainer refuses a chronological split whose training or
+held-out partition lacks benign or attack windows; that prevents misleading metrics.
+
 ### Reading the attack-stage forecast
 
 The dashboard deliberately shows one **five-minute stage verdict** rather than repeating the
@@ -255,7 +294,7 @@ new stage. A sustained stage means the model sees a continuing pattern, not five
 incidents.
 
 The six model classes are `Benign`, `Reconnaissance`, `Initial Access`, `Lateral Movement`,
-`Command & Control`, and `Exfiltration / Impact`. These are transparent, coarse
+`Command & Control`, and `Impact`. These are transparent, coarse
 CICIDS-to-MITRE-aligned progression categories—not verified ATT&CK techniques. The analyst
 must validate a forecast using endpoint, identity, and packet-level evidence. The exact label
 mapping is in [docs/research/mitre_stage_mapping.md](docs/research/mitre_stage_mapping.md).
@@ -266,10 +305,20 @@ To retrain the bundled model from the bundled replay:
 
 ```bash
 PYTHONPATH=.:backend python -m ai.training.train_world_model \
-  ai/datasets/cleaned/cicids2017_archive_clean.csv --epochs 15
+  ai/datasets/cleaned/cicids2017_archive_clean.csv --epochs 30 --test-fraction 0.5
 ```
 
-This replaces `ai/models/world_model.pt`. Restart the backend after training.
+This replaces `ai/models/world_model.pt`. Evaluate the same held-out split before using it,
+then restart the backend:
+
+```bash
+PYTHONPATH=.:backend python -m ai.evaluation.evaluate_models \
+  ai/datasets/cleaned/cicids2017_archive_clean.csv ai/models/world_model.pt --test-fraction 0.5
+docker compose restart backend
+```
+
+A successful run is not proof of generalization: compare against the logistic baseline and
+test on a separate timestamped dataset before claiming accuracy.
 For final research, pass original timestamped CICIDS files instead; full preparation,
 training, and evaluation instructions are in [the model runbook](docs/demo/world-model-runbook.md).
 

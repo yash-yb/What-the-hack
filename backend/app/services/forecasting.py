@@ -132,6 +132,7 @@ def _world_model_forecast(history: list[dict[str, float]]) -> tuple[dict[str, An
 def _fallback_forecast(window_id: str, features: dict[str, float], timestamp: str, reason: str) -> dict[str, Any]:
     """Score the newest window with the dependency-free precursor rules."""
     from ai.inference import rule_based_forecast
+    from ai.inference.mitre_attack_map import candidates_for_stage
     from ai.inference.contract import DEFAULT_HORIZON_SEC
 
     response = rule_based_forecast(
@@ -151,8 +152,8 @@ def _fallback_forecast(window_id: str, features: dict[str, float], timestamp: st
         "BENIGN": "Benign",
         "Reconnaissance": "Reconnaissance",
         "BruteForce": "Initial Access",
-        "DDoS": "Exfiltration / Impact",
-        "DoS": "Exfiltration / Impact",
+        "DDoS": "Impact",
+        "DoS": "Impact",
     }
     stage = stage_by_type.get(response["predicted_attack_type"], "Benign")
     return {
@@ -164,6 +165,7 @@ def _fallback_forecast(window_id: str, features: dict[str, float], timestamp: st
         "peak_risk_window": 1,
         "peak_risk_stage": stage,
         "predicted_attack_type": response["predicted_attack_type"],
+        "attack_candidates": candidates_for_stage(stage),
         "confidence_score": response["confidence_score"],
         "is_uncertain": response["is_uncertain"],
         "is_ood": False,  # The rules have no training distribution to compare against.

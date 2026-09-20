@@ -25,8 +25,16 @@ const mitreStages = [
   { stage: "Initial Access", source: "FTP/SSH Patator, web brute force, Heartbleed", color: "bg-amber-500" },
   { stage: "Lateral Movement", source: "Infiltration", color: "bg-violet-500" },
   { stage: "Command & Control", source: "Botnet", color: "bg-fuchsia-500" },
-  { stage: "Exfiltration / Impact", source: "DoS / DDoS harmful-impact bucket", color: "bg-rose-500" },
+  { stage: "Impact", source: "DoS / DDoS harmful-impact bucket", color: "bg-rose-500" },
 ];
+
+const mitreAttacks = [
+  ["PortScan", "T1046", "Network Service Scanning"], ["FTP_Patator", "T1110", "Brute Force"], ["SSH_Patator", "T1110", "Brute Force"],
+  ["Web_BruteForce", "T1110", "Brute Force"], ["Web_XSS", "T1190", "Exploit Public-Facing Application"], ["Web_SqlInjection", "T1190", "Exploit Public-Facing Application"],
+  ["Heartbleed", "T1190", "Exploit Public-Facing Application"], ["Infiltration", "T1021", "Remote Services"], ["Botnet", "T1071", "Application Layer Protocol"],
+  ["DoS_Hulk", "T1499", "Endpoint Denial of Service"], ["DoS_GoldenEye", "T1499", "Endpoint Denial of Service"], ["DoS_Slowloris", "T1499", "Endpoint Denial of Service"],
+  ["DoS_Slowhttptest", "T1499", "Endpoint Denial of Service"], ["DDoS_LOIC", "T1498", "Network Denial of Service"],
+] as const;
 
 const featureDetails: Record<string, { label: string; why: string }> = {
   flow_count: { label: "Connection volume", why: "An unusual number of separate network connections occurred in one minute." },
@@ -55,7 +63,7 @@ const mitreExplanation: Record<string, string> = {
   "Initial Access": "MITRE ATT&CK tactic alignment: an initial-access / credential-attempt pattern. It is a coarse category, not a claim that credentials were compromised.",
   "Lateral Movement": "MITRE ATT&CK tactic alignment: movement between systems may be developing. Validate with endpoint and identity telemetry before acting.",
   "Command & Control": "MITRE ATT&CK tactic alignment: traffic resembles a possible command-and-control communication pattern. Validate the destination and process ownership.",
-  "Exfiltration / Impact": "MITRE ATT&CK tactic alignment: late-stage high-impact behaviour is forecast. It does not prove data was exfiltrated; inspect the affected flows and endpoints.",
+  "Impact": "MITRE ATT&CK tactic alignment: high-impact behaviour is forecast. It does not prove a denial-of-service attack; inspect the affected flows and endpoints.",
   "Benign": "The model's most likely coarse class is benign for this forecast window.",
 };
 
@@ -183,6 +191,7 @@ export default function DashboardPage() {
           </div>
           <div className="mt-4 space-y-3">{forecast.risk_timeline.map((point) => <div key={point.step} className="flex items-center gap-3 text-sm"><span className="w-14 text-slate-500">+{point.step} min</span><div className="h-2 flex-1 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-indigo-500" style={{ width: `${point.risk_score * 100}%` }} /></div><span className="w-12 text-right font-medium text-slate-700">{Math.round(point.risk_score * 100)}%</span></div>)}</div>
           {stageTransitions.length > 1 && <p className="mt-4 border-t border-slate-100 pt-4 text-sm text-slate-600">Stage changes: {stageTransitions.map((point) => `+${point.step} min ${point.stage ?? "Unknown"}`).join(" → ")}</p>}
+          {forecast.attack_candidates?.length ? <div className="mt-4 border-t border-slate-100 pt-4"><p className="text-xs font-semibold uppercase tracking-[.14em] text-slate-500">Compatible training labels — not confirmed techniques</p><div className="mt-2 flex flex-wrap gap-2">{forecast.attack_candidates.map((candidate) => <span key={candidate.label} title={`${candidate.tactic}: ${candidate.technique_id} ${candidate.technique}`} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{candidate.label}</span>)}</div></div> : null}
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="font-semibold text-slate-900">What influenced this forecast</h3>
@@ -199,7 +208,8 @@ export default function DashboardPage() {
       <section className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-6 shadow-sm">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-indigo-600">Model reference</p><h3 className="mt-1 text-xl font-semibold text-slate-900">MITRE-aligned stage mapping</h3></div><p className="max-w-xl text-sm text-slate-600">The model forecasts a coarse attack-progression category from flow behaviour. Analysts must validate it with endpoint, identity, and packet evidence; it does not assert an exact ATT&amp;CK technique.</p></div>
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">{mitreStages.map((item) => <div key={item.stage} className="rounded-xl border border-white bg-white p-4"><span className={`mb-3 block h-1.5 w-10 rounded-full ${item.color}`} /><h4 className="font-semibold text-slate-900">{item.stage}</h4><p className="mt-1 text-xs leading-5 text-slate-500">Training label: {item.source}</p></div>)}</div>
-        <p className="mt-4 text-xs text-slate-500">Benign traffic is the sixth model class. DoS/DDoS is displayed in a shared late-stage Impact bucket; it is not presented as proof of data exfiltration.</p>
+        <div className="mt-5 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{mitreAttacks.map(([label, id, technique]) => <div key={label} className="rounded-lg border border-white bg-white px-3 py-2 text-xs"><span className="font-semibold text-slate-800">{label}</span><span className="ml-2 text-slate-500">{id} · {technique}</span></div>)}</div>
+        <p className="mt-4 text-xs text-slate-500">The table is a label-to-ATT&amp;CK reference, not an attribution engine. Benign is the sixth model class; DoS/DDoS maps to Impact, never to data exfiltration.</p>
       </section>
     </div>
   );

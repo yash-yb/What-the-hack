@@ -73,7 +73,7 @@ MITRE_STAGES = (
     "Initial Access",
     "Lateral Movement",
     "Command & Control",
-    "Exfiltration / Impact",
+    "Impact",
 )
 
 # A stage answers "where in the campaign", an attack type answers "what kind of traffic".
@@ -84,7 +84,7 @@ STAGE_TO_ATTACK_TYPE = {
     "Initial Access": "BruteForce",
     "Lateral Movement": "Infiltration",
     "Command & Control": "Botnet_C2",
-    "Exfiltration / Impact": "DoS",
+    "Impact": "DoS",
 }
 
 LABEL_TO_FAMILY = {

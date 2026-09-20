@@ -48,6 +48,7 @@ def test_forecast_falls_back_instead_of_failing_without_a_checkpoint(client, ana
     assert len(body["risk_timeline"]) == 5
     assert 0.0 <= body["confidence_score"] <= 1.0
     assert body["top_feature_contributors"]
+    assert "attack_candidates" in body
 
 
 def test_forecast_on_an_empty_source_is_422_not_500(client, analyst_token) -> None:

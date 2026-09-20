@@ -16,7 +16,7 @@ from ai.inference.contract import (
     risk_level_for,
     validate_features,
 )
-from ai.inference.mitre_stage_map import MITRE_STAGES
+from ai.inference.mitre_stage_map import MITRE_STAGES, candidates_for_stage
 from ai.models.world_model import WorldModel
 
 
@@ -63,6 +63,10 @@ def forecast(model: WorldModel, checkpoint: dict[str, Any], history: Sequence[di
         "peak_risk_window": peak + 1,
         "peak_risk_stage": stages[peak],
         "predicted_attack_type": attack_type_for_stage(stages[peak]),
+        # The model has a six-class stage head, not a per-attack classifier.  Expose the
+        # individual training labels compatible with its stage instead of pretending that
+        # the first broad family is a confirmed exact attack.
+        "attack_candidates": candidates_for_stage(stages[peak]),
         "confidence_score": confidence,
         "is_uncertain": confidence < 0.55,
         "is_ood": len(out_of_distribution) >= OOD_MIN_FEATURES,

@@ -6,5 +6,5 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 PY="backend/.venv/bin/python"
 [ -x "$PY" ] || PY="python3"
-"$PY" -m pip install -q pytest jsonschema pandas >/dev/null 2>&1 || true
+"$PY" -m pip install -q pytest httpx jsonschema pandas >/dev/null 2>&1 || true
 "$PY" -m pytest "$@"

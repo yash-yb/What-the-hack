@@ -35,7 +35,7 @@ RECOMMENDED_ACTIONS = {
         "Correlate with DNS and TLS SNI records for the same host.",
         "Contain the endpoint before it receives further instructions.",
     ],
-    "Exfiltration / Impact": [
+    "Impact": [
         "Enable TCP SYN cookies and pre-stage upstream rate limiting.",
         "Check egress volume against the host's normal baseline.",
         "Prepare to fail over or shed load on the targeted service.",

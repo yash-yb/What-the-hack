@@ -27,7 +27,7 @@ from sklearn.metrics import average_precision_score, confusion_matrix, f1_score,
 from ai.evaluation.lead_time import WINDOW_SECONDS, lead_time_metrics
 from ai.feature_engineering.labeled_windows import build_labeled_windows
 from ai.inference.forecast_engine import load_model
-from ai.training.train_world_model import SEQ_LEN, purge_size, split_index
+from ai.training.train_world_model import SEQ_LEN, purge_size, require_evaluable_split, split_index
 
 DEFAULT_THRESHOLD = 0.5
 
@@ -54,6 +54,7 @@ def main(csv_path: str, checkpoint_path: str, test_fraction: float, threshold: f
     total = len(data.features)
     boundary = split_index(total, test_fraction)
     train_end = max(boundary - purge_size(), 0)
+    require_evaluable_split(data.risk_labels, train_end, boundary)
 
     model, checkpoint = load_model(checkpoint_path)
     trained = checkpoint.get("training")
