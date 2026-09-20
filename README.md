@@ -110,7 +110,7 @@ docker compose version
 ```
 
 ```bash
-git clone https://github.com/DurgeshLabs/What-the-hack.git
+git clone https://github.com/yash-yb/What-the-hack
 cd What-the-hack
 cp .env.example .env
 docker compose up --build -d
